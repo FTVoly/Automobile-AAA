@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garage Central | Réparation & Entretien Auto</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <div class="logo">GARAGE<span class="highlight">CENTRAL</span></div>
+            <ul class="nav-links">
+                <li><a href="#">Accueil</a></li>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#contact">Contact</a></li>
+                <li><a href="#" class="btn-primary" onclick="openChat()">Prendre RDV</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container hero-content">
+            <h1>L'expertise mécanique à votre service</h1>
+            <p>Révisions, pneus, freinage. Prenez rendez-vous en 30 secondes grâce à notre assistant intelligent, disponible 24h/24.</p>
+            <div class="hero-buttons">
+                <button class="btn-primary big" onclick="openChat()">💬 Réserver un créneau</button>
+                <button class="btn-secondary">Nos tarifs</button>
+            </div>
+        </div>
+    </header>
+
+    <section id="services" class="services">
+        <div class="container">
+            <h2 class="section-title">Nos Prestations</h2>
+            <div class="services-grid">
+                <div class="card">
+                    <div class="icon">🔧</div>
+                    <h3>Mécanique Générale</h3>
+                    <p>Entretien complet, vidange, et diagnostics électroniques toutes marques.</p>
+                </div>
+                <div class="card">
+                    <div class="icon">🚗</div>
+                    <h3>Pneumatiques</h3>
+                    <p>Montage, équilibrage et géométrie. Large choix de pneus été/hiver.</p>
+                </div>
+                <div class="card">
+                    <div class="icon">❄️</div>
+                    <h3>Climatisation</h3>
+                    <p>Recharge de gaz et traitement anti-bactérien pour votre confort.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <p>&copy; 2026 Garage Central. Tous droits réservés.</p>
+            <p>Démo réalisée pour montrer la puissance de l'IA.</p>
+        </div>
+    </footer>
+
+    <div id="chatbot-container">
+        <button id="chatbot-toggle">💬</button>
+
+        <div id="chatbot-window">
+            <div class="chat-header">
+                <span>Assistant Garage</span>
+                <span id="chatbot-close">✕</span>
+            </div>
+            
+            <div id="chatbot-messages">
+                <div class="message bot-message">
+                    Bonjour ! Je suis l'assistant virtuel. Je peux prendre votre rendez-vous ou vérifier nos disponibilités.
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="chatbot-input" placeholder="Écrivez votre message...">
+                <button id="chatbot-send">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ⬇️⬇️ COLLE TON LIEN N8N ICI ⬇️⬇️
+        const WEBHOOK_URL = "https://n8n-ube2.onrender.com/webhook/garage-chat"; 
+
+        // -- Ne touche pas à la suite --
+        let sessionId = localStorage.getItem('chat_session_id');
+        if (!sessionId) {
+            sessionId = "user-" + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem('chat_session_id', sessionId);
+        }
+
+        const toggleBtn = document.getElementById('chatbot-toggle');
+        const closeBtn = document.getElementById('chatbot-close');
+        const chatWindow = document.getElementById('chatbot-window');
+        const messagesDiv = document.getElementById('chatbot-messages');
+        const inputField = document.getElementById('chatbot-input');
+        const sendBtn = document.getElementById('chatbot-send');
+
+        // Fonction globale pour ouvrir le chat depuis les boutons du site
+        window.openChat = function() {
+            chatWindow.style.display = 'flex';
+            inputField.focus();
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = chatWindow.style.display === 'none' || chatWindow.style.display === '';
+            chatWindow.style.display = isHidden ? 'flex' : 'none';
+            if(isHidden) inputField.focus();
+        });
+
+        closeBtn.addEventListener('click', () => chatWindow.style.display = 'none');
+
+        function addMessage(text, isUser) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = isUser ? 'message user-message' : 'message bot-message';
+            msgDiv.innerText = text;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = inputField.value.trim();
+            if (!text) return;
+
+            addMessage(text, true);
+            inputField.value = "";
+
+            // Loading indicator
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot-loading';
+            loadingDiv.innerText = "• • •";
+            loadingDiv.id = "bot-loading";
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chatInput: text, sessionId: sessionId })
+                });
+                
+                const data = await response.json();
+                if(document.getElementById("bot-loading")) document.getElementById("bot-loading").remove();
+                
+                const botResponse = data.output || data.text || JSON.stringify(data);
+                addMessage(botResponse, false);
+
+            } catch (error) {
+                if(document.getElementById("bot-loading")) document.getElementById("bot-loading").remove();
+                addMessage("Erreur de connexion 😓", false);
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        inputField.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
